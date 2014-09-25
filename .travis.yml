@@ -14,6 +14,6 @@ script:
    - coverage combine
 before_install:
    - sudo apt-get update -qq
-   - sudo apt-get install -qq python-dev libyaml-dev libsofthsm-bin softhsm opensc libengine-pkcs11-openssl
+   - sudo apt-get install -qq python-dev libyaml-dev libsofthsm softhsm opensc libengine-pkcs11-openssl
 after_success:
    coveralls
