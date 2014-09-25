@@ -33,6 +33,9 @@ setup(name='pyeleven',
       include_package_data=True,
       zip_safe=False,
       install_requires=install_requires,
+      entry_points={
+          'console_scripts': ['pyeleven=pyeleven:main']
+      },
       message_extractors={'src': [
           ('**.py', 'python', None),
           ('**/templates/**.html', 'mako', None),

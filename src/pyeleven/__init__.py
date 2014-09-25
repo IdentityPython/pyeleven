@@ -1,10 +1,14 @@
 from flask import Flask, request, jsonify
 from .pk11 import pkcs11, intarray2bytes, mechanism
+import os
 
 __author__ = 'leifj'
 
 app = Flask(__name__)
-app.config.from_pyfile('config.py')
+app.debug = True
+app.config.from_pyfile(os.path.join(os.getcwd(), 'config.py'))
+app.secret_key = app.config.get("SECRET_KEY")
+print app.config
 
 @app.route("/info")
 def info():
@@ -28,3 +32,9 @@ def sign(slot):
         return jsonify(dict(slot=slot,
                             mech=msg['mech'],
                             signed=intarray2bytes(session.sign(data, mech))))
+
+
+if __name__ == "__main__":
+    app.run()
+
+main = app.run
