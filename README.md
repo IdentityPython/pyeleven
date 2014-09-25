@@ -1,4 +1,6 @@
 
+[![Code Health](https://landscape.io/github/leifj/pyeleven/master/landscape.png)](https://landscape.io/github/leifj/pyeleven/master)
+
 Python PKCS11 REST Proxy
 ========================
 
