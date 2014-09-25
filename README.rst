@@ -15,14 +15,14 @@ Getting started
 Checkout code
 -------------
 
-```
+```bash
 # git clone <this github url>
 ```
 
 Build a virtualenv
 ------------------
 
-```
+```bash
 # apt-get install python-virtualenv
 # virtualenv /path/to/venv
 # . /path/to/venv/bin/activate
@@ -31,7 +31,7 @@ Build a virtualenv
 Install packages
 ----------------
 
-```
+```bash
 # pip install -r requirements.txt
 # pip install gunicorn
 ```
@@ -39,7 +39,7 @@ Install packages
 Install this application
 ------------------------
 
-```
+```bash
 # ./setup develop
 ```
 
@@ -48,7 +48,7 @@ Create config
 
 In the examples directory there is a script (gen-token.sh) that builds a sample config based on softhsm. Install softhsm first, then run gen-token.sh to create token, generate keys and create config.py. Finally start pyeleven in the same directory as the config.py file:
 
-```
+```bash
 # apt-get install libhsm-bin
 # cd examples
 # make
