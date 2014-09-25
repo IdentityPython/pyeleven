@@ -15,7 +15,7 @@ Getting started
 Checkout code
 -------------
 
-# git clone <this github url>
+  # git clone <this github url>
 
 Build a virtualenv
 ------------------
