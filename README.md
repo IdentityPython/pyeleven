@@ -51,4 +51,6 @@ In the examples directory there is a script (gen-token.sh) that builds a sample 
     config.py  gen-token.sh  Makefile  openssl.conf  softhsm.conf  softhsm.db  test.crt  test.der
     # gunicorn --log-level debug -d :8080 pyeleven:app
 
-This should start pyeleven on port 8080. Report bugs & Enjoy.
+This should start pyeleven on port 8080. Now try to sign something by POSTing a JSON object with 'mech' and 'data' fields. Currently 'mech' is silently ignored and RSASHA1 is used for everything. This will change soon.
+
+UTSL, report bugs & Enjoy.

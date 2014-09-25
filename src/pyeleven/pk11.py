@@ -3,12 +3,11 @@ import threading
 
 __author__ = 'leifj'
 
-from urlparse import urlparse
-import os
 import logging
 import PyKCS11
 
-from PyKCS11.LowLevel import CKA_ID, CKA_LABEL, CKA_CLASS, CKO_PRIVATE_KEY, CKO_CERTIFICATE, CKK_RSA, CKA_KEY_TYPE, CKA_VALUE
+from PyKCS11.LowLevel import CKA_ID, CKA_LABEL, CKA_CLASS, CKO_PRIVATE_KEY, CKO_CERTIFICATE, CKK_RSA, \
+    CKA_KEY_TYPE, CKA_VALUE
 
 all_attributes = PyKCS11.CKA.keys()
 
