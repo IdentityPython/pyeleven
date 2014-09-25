@@ -15,46 +15,46 @@ Getting started
 Checkout code
 -------------
 
-```bash
+``bash
 # git clone <this github url>
-```
+``
 
 Build a virtualenv
 ------------------
 
-```bash
+``bash
 # apt-get install python-virtualenv
 # virtualenv /path/to/venv
 # . /path/to/venv/bin/activate
-```
+``
 
 Install packages
 ----------------
 
-```bash
+``bash
 # pip install -r requirements.txt
 # pip install gunicorn
-```
+``
 
 Install this application
 ------------------------
 
-```bash
+``bash
 # ./setup develop
-```
+``
 
 Create config
 -------------
 
 In the examples directory there is a script (gen-token.sh) that builds a sample config based on softhsm. Install softhsm first, then run gen-token.sh to create token, generate keys and create config.py. Finally start pyeleven in the same directory as the config.py file:
 
-```bash
+``bash
 # apt-get install libhsm-bin
 # cd examples
 # make
 # ls
 config.py  gen-token.sh  Makefile  openssl.conf  softhsm.conf  softhsm.db  test.crt  test.der
 # gunicorn --log-level debug -d :8080 pyeleven:app
-```
+``
 
 This should start pyeleven on port 8080. Report bugs & Enjoy.
