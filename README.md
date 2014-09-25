@@ -1,6 +1,7 @@
 
 [![Code Health](https://landscape.io/github/leifj/pyeleven/master/landscape.png)](https://landscape.io/github/leifj/pyeleven/master)
 [![Travis](https://travis-ci.org/leifj/pyeleven.svg?branch=master)](https://travis-ci.org/leifj/pyeleven)
+[![Coverage Status](https://coveralls.io/repos/leifj/pyeleven/badge.png)](https://coveralls.io/r/leifj/pyeleven)
 
 Python PKCS11 REST Proxy
 ========================
