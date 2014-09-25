@@ -1,0 +1,19 @@
+language: python
+python:
+   - "2.7"
+install:
+   - "pip install -r requirements.txt"
+   - "./setup.py develop"
+   - "pip install coveralls"
+   - "pip install nose"
+script: 
+   - export PYTHONPATH=./src:$PYTHONPATH
+   - coverage erase
+   - coverage run --source=pyeleven setup.py test
+   - mv .coverage .coverage.1
+   - coverage combine
+before_install:
+   - sudo apt-get update -qq
+   - sudo apt-get install -qq python-dev libyaml-dev libsofthsm-bin softhsm opensc libengine-pkcs11-openssl
+after_success:
+   coveralls
