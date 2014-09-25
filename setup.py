@@ -4,7 +4,7 @@ from setuptools import find_packages
 import os
 
 here = os.path.abspath(os.path.dirname(__file__))
-README = open(os.path.join(here, 'README.rst')).read()
+README = open(os.path.join(here, 'README.md')).read()
 
 version = '0.0.1'
 
