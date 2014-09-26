@@ -207,6 +207,15 @@ class FlaskTestCase(TestCase):
         assert 'slot' in d
         assert 'signed' in d
 
+    def test_bad_sign_request(self):
+        try:
+            rv = self.app.post("/0/test/sign",
+                               content_type='application/json',
+                               data=json.dumps('foo'))
+            assert False
+        except ValueError:
+            pass
+
 
 class TestPKCS11(unittest.TestCase):
     def setUp(self):
@@ -232,3 +241,4 @@ class TestPKCS11(unittest.TestCase):
             key, cert = find_key(session, 'test')
             signed = intarray2bytes(session.sign(key, 'test', mechanism('RSAPKCS1')))
             assert signed is not None
+            assert signed.decode('base64') is not None
