@@ -37,10 +37,11 @@ def _sessions():
 
 
 def mechanism(mech):
-    return PyKCS11.MechanismRSAPKCS1
-
+    mn = "Mechanism%s" % mech
+    return getattr(PyKCS11, mn)
 
 class pkcs11():
+
     def __init__(self, library, slot, pin=None):
         self.library = library
         self.slot = slot
@@ -52,6 +53,7 @@ class pkcs11():
         s = _sessions()
         if self.library not in s:
             s.setdefault(self.library, dict())
+
         if self.slot not in s[self.library]:
             s[self.library].setdefault(self.slot, dict())
 
@@ -62,11 +64,12 @@ class pkcs11():
                 assert type(self.library) == str  # lib.load does not like unicode
                 lib.load(self.library)
                 modules[self.library] = lib
-            else:
-                logging.debug("already loaded: %s: %s" % (self.library, modules[self.library]))
 
             lib = modules[self.library]
-            s[self.library][self.slot] = lib.openSession(self.slot)
+            session = lib.openSession(self.slot)
+            if self.pin is not None:
+                session.login(self.pin)
+            s[self.library][self.slot] = session
 
         if self.slot not in s[self.library]:
             raise EnvironmentError("Unable to open session")
@@ -74,14 +77,15 @@ class pkcs11():
         return s[self.library][self.slot]
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        s = _sessions()
-        if self.library not in s:
-            s.setdefault(self.library, dict())
-        if self.slot in s[self.library]:
-            session = s[self.library][self.slot]
-            session.logout()
-            session.closeSession()
-            del s[self.library][self.slot]
+        #s = _sessions()
+        #if self.library not in s:
+        #    s.setdefault(self.library, dict())
+
+        #if self.slot in s[self.library]:
+        #    session = s[self.library][self.slot]
+        #    session.logout()
+        #    session.closeSession()
+        #    del s[self.library][self.slot]
         _session_lock.release()
 
 

@@ -1,4 +1,6 @@
 *.pyc
+*.egg
+.coverage
 
 .installed.cfg
 bin

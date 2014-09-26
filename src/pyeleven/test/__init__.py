@@ -2,6 +2,7 @@
 Testing the PKCS#11 shim layer
 """
 from flask import json
+from .. import mechanism, intarray2bytes, find_key
 
 __author__ = 'leifj'
 
@@ -201,8 +202,24 @@ class TestPKCS11(unittest.TestCase):
     def setUp(self):
         datadir = pkg_resources.resource_filename(__name__, 'data')
 
-    @unittest.skipIf(P11_MODULE is None, "SoftHSM PKCS11 module not installed")
     def test_open_session(self):
         os.environ['SOFTHSM_CONF'] = softhsm_conf
         with pk11.pkcs11(P11_MODULE, 0, "secret1") as session:
             assert session is not None
+
+    def test_find_key(self):
+        os.environ['SOFTHSM_CONF'] = softhsm_conf
+        with pk11.pkcs11(P11_MODULE, 0, "secret1") as session:
+            print session
+            assert session is not None
+            key, cert = find_key(session, 'test')
+            assert key is not None
+            assert cert is not None
+
+    def test_sign(self):
+        os.environ['SOFTHSM_CONF'] = softhsm_conf
+        with pk11.pkcs11(P11_MODULE, 0, "secret1") as session:
+            key, cert = find_key(session, 'test')
+            signed = intarray2bytes(session.sign(key, 'test', mechanism('RSAPKCS1')))
+            assert signed is not None
+            print signed
