@@ -58,7 +58,7 @@ UTSL, report bugs & Enjoy.
 API
 ---
 
-Sign
+**Sign**
 
 POST a JSON object to
 
