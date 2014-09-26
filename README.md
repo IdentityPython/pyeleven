@@ -73,6 +73,6 @@ if successful the response will be a JSON object:
 **Slot Info**
 
 GET
-    /<slot
+    /<slot>
 
 returns a JSON datastructure representing information.
