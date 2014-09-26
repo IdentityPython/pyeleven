@@ -54,3 +54,17 @@ In the examples directory there is a script (gen-token.sh) that builds a sample 
 This should start pyeleven on port 8080. Now try to sign something by POSTing a JSON object with 'mech' and 'data' fields. Currently 'mech' is silently ignored and RSASHA1 is used for everything. This will change soon.
 
 UTSL, report bugs & Enjoy.
+
+API
+---
+
+Sign
+
+POST a JSON object to
+
+    /<slot>/<keyalias>/sign
+    
+with the following pattern:
+    
+    {'mech': 'RSAPKCS1', 'data': 'to-be-signed'}
+    
