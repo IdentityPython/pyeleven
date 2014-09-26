@@ -197,6 +197,16 @@ class FlaskTestCase(TestCase):
         assert 'library' in d
         assert d['library'] == P11_MODULE
 
+    def test_sign(self):
+        rv = self.app.post("/0/test/sign",
+                           content_type='application/json',
+                           data=json.dumps(dict(mech='RSAPKCS1', data="test".encode('base64'))))
+        assert rv.data
+        d = json.loads(rv.data)
+        assert d is not None
+        assert 'slot' in d
+        assert 'signed' in d
+
 
 class TestPKCS11(unittest.TestCase):
     def setUp(self):
@@ -222,4 +232,3 @@ class TestPKCS11(unittest.TestCase):
             key, cert = find_key(session, 'test')
             signed = intarray2bytes(session.sign(key, 'test', mechanism('RSAPKCS1')))
             assert signed is not None
-            print signed

@@ -40,6 +40,19 @@ def mechanism(mech):
     mn = "Mechanism%s" % mech
     return getattr(PyKCS11, mn)
 
+
+def library(lib_name):
+    modules = _modules()
+    if not lib_name in modules:
+        logging.debug("loading library %s" % lib_name)
+        lib = PyKCS11.PyKCS11Lib()
+        assert type(lib_name) == str  # lib.load does not like unicode
+        lib.load(lib_name)
+        modules[lib_name] = lib
+
+    return modules[lib_name]
+
+
 class pkcs11():
 
     def __init__(self, library, slot, pin=None):
@@ -57,15 +70,7 @@ class pkcs11():
         if self.slot not in s[self.library]:
             s[self.library].setdefault(self.slot, dict())
 
-            modules = _modules()
-            if not self.library in modules:
-                logging.debug("loading library %s" % self.library)
-                lib = PyKCS11.PyKCS11Lib()
-                assert type(self.library) == str  # lib.load does not like unicode
-                lib.load(self.library)
-                modules[self.library] = lib
-
-            lib = modules[self.library]
+            lib = library(self.library)
             session = lib.openSession(self.slot)
             if self.pin is not None:
                 session.login(self.pin)
