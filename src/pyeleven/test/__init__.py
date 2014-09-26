@@ -253,4 +253,3 @@ class TestPKCS11(unittest.TestCase):
             key, cert = find_key(session, 'test')
             signed = intarray2bytes(session.sign(key, 'test', mechanism('RSAPKCS1')))
             assert signed is not None
-            assert signed.decode('base64') is not None
