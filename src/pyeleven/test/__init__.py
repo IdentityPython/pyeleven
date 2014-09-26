@@ -216,6 +216,18 @@ class FlaskTestCase(TestCase):
         except ValueError:
             pass
 
+    def test_slot_info(self):
+        rv = self.app.get("/0")
+        assert rv.data
+        d = json.loads(rv.data)
+        print d
+
+    def test_token_info(self):
+        rv = self.app.get("/")
+        assert rv.data
+        d = json.loads(rv.data)
+        print d
+
 
 class TestPKCS11(unittest.TestCase):
     def setUp(self):

@@ -38,7 +38,16 @@ def _sign(slot, keyname):
 def _slot(slot):
     lib = library(app.config['PKCS11MODULE'])
     r = dict()
-    r['mechanisms'] = lib.getMechanismList()
+    r['mechanisms'] = lib.getMechanismList(slot)
+    r['slot'] = lib.getSlotInfo(slot).to_dict()
+    r['token'] = lib.getTokenInfo(slot).to_dict()
+    return jsonify(r)
+
+@app.route("/", methods=['GET'])
+def _token():
+    lib = library(app.config['PKCS11MODULE'])
+    r = dict()
+    r['slots'] = lib.getSlotList()
     return jsonify(r)
 
 
