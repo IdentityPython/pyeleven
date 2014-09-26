@@ -68,3 +68,7 @@ with the following pattern:
     
     {'mech': 'RSAPKCS1', 'data': 'to-be-signed'}
     
+if successful the response will be a JSON object:
+
+    {'mech': 'RSAPKCS1', 'slot': <slot>, 'signed': 'signed data'}
+    
