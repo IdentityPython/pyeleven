@@ -34,6 +34,8 @@ def _sign(slot, keyname):
     pin = app.config.get('PKCS11PIN', None)
     with pkcs11(libn, slot, pin=pin) as session:
         key, cert = find_key(session, keyname)
+        assert key is not None
+        assert cert is not None
         return jsonify(dict(slot=slot,
                             mech=msg['mech'],
                             signed=intarray2bytes(session.sign(key, data, mech)).encode('base64')))

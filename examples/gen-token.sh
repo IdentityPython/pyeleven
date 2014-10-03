@@ -10,6 +10,7 @@ cat>config.py<<EOF
 DEBUG = True
 SECRET = "secret1"
 PKCS11MODULE = "$P11_MODULE"
+PKCS11PIN = "secret1"
 EOF
 cat>softhsm.conf<<EOF
 0: softhsm.db
