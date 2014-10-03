@@ -9,6 +9,10 @@ app.debug = True
 app.config.from_pyfile(os.path.join(os.getcwd(), 'config.py'))
 app.secret_key = app.config.get("SECRET_KEY")
 print app.config
+import sys
+
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
 @app.route("/info")
 def _info():
