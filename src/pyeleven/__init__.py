@@ -44,9 +44,18 @@ def _sign(slot, keyname):
 def _slot(slot):
     lib = library(app.config['PKCS11MODULE'])
     r = dict()
-    r['mechanisms'] = lib.getMechanismList(slot)
-    r['slot'] = lib.getSlotInfo(slot).to_dict()
-    r['token'] = lib.getTokenInfo(slot).to_dict()
+    try:
+        r['mechanisms'] = lib.getMechanismList(slot)
+    except:
+        pass
+    try:
+        r['slot'] = lib.getSlotInfo(slot).to_dict()
+    except:
+        pass
+    try:
+        r['token'] = lib.getTokenInfo(slot).to_dict()
+    except:
+        pass
     return jsonify(r)
 
 @app.route("/", methods=['GET'])
