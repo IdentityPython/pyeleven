@@ -48,6 +48,7 @@ def library(lib_name):
         lib = PyKCS11.PyKCS11Lib()
         assert type(lib_name) == str  # lib.load does not like unicode
         lib.load(lib_name)
+        lib.lib.C_Initialize()
         modules[lib_name] = lib
 
     return modules[lib_name]
