@@ -1,4 +1,5 @@
 import base64
+from collections import namedtuple
 import threading
 
 __author__ = 'leifj'
@@ -53,6 +54,7 @@ def library(lib_name):
 
     return modules[lib_name]
 
+SessionInfo = namedtuple('SessionInfo', ['session', 'keys'])
 
 class pkcs11():
 
@@ -62,8 +64,6 @@ class pkcs11():
         self.pin = pin
 
     def __enter__(self):
-        _session_lock.acquire()
-
         s = _sessions()
         if self.library not in s:
             s.setdefault(self.library, dict())
@@ -75,7 +75,7 @@ class pkcs11():
             session = lib.openSession(self.slot)
             if self.pin is not None:
                 session.login(self.pin)
-            s[self.library][self.slot] = session
+            s[self.library][self.slot] = SessionInfo(session=session, keys=dict())
 
         if self.slot not in s[self.library]:
             raise EnvironmentError("Unable to open session")
@@ -83,16 +83,7 @@ class pkcs11():
         return s[self.library][self.slot]
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        #s = _sessions()
-        #if self.library not in s:
-        #    s.setdefault(self.library, dict())
-
-        #if self.slot in s[self.library]:
-        #    session = s[self.library][self.slot]
-        #    session.logout()
-        #    session.closeSession()
-        #    del s[self.library][self.slot]
-        _session_lock.release()
+        pass
 
 
 def intarray2bytes(x):
@@ -100,14 +91,14 @@ def intarray2bytes(x):
 
 
 def find_object(session, template):
-    for o in session.findObjects(template):
+    for o in session.session.findObjects(template):
         logging.debug("Found pkcs11 object: %s" % o)
         return o
     return None
 
 
 def get_object_attributes(session, o):
-    attributes = session.getAttributeValue(o, all_attributes)
+    attributes = session.session.getAttributeValue(o, all_attributes)
     return dict(zip(all_attributes, attributes))
 
 
@@ -125,15 +116,17 @@ def cert_der2pem(der):
 
 
 def find_key(session, keyname):
-    key = find_object(session, [(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
-    if key is None:
-        return None, None
-    key_a = get_object_attributes(session, key)
-    cert = find_object(session, [(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
-    cert_pem = None
-    if cert is not None:
-        cert_a = get_object_attributes(session, cert)
-        cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
-        logging.debug(cert)
-    return key, cert_pem
+    if keyname not in session.keys:
+        key = find_object(session, [(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
+        if key is None:
+            return None, None
+        key_a = get_object_attributes(session, key)
+        cert = find_object(session, [(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
+        cert_pem = None
+        if cert is not None:
+            cert_a = get_object_attributes(session, cert)
+            cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
+            logging.debug(cert)
+        session.keys[keyname] = (key, cert_pem)
 
+    return session.keys[keyname]

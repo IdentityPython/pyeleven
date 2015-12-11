@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify
 from .pk11 import pkcs11, intarray2bytes, mechanism, find_key, library
 import os
+import sys
+import logging
 
 __author__ = 'leifj'
 
@@ -9,15 +11,15 @@ app.debug = True
 app.config.from_pyfile(os.path.join(os.getcwd(), 'config.py'))
 app.secret_key = app.config.get("SECRET_KEY")
 print app.config
-import sys
 
-import logging
 logging.basicConfig(level=logging.DEBUG)
+
 
 @app.route("/info")
 def _info():
     libn = app.config['PKCS11MODULE']
     return jsonify(dict(library=libn))
+
 
 @app.route("/<int:slot>/<keyname>/sign", methods=['POST'])
 def _sign(slot, keyname):
@@ -32,13 +34,14 @@ def _sign(slot, keyname):
     libn = app.config['PKCS11MODULE']
     mech = mechanism(msg['mech'])
     pin = app.config.get('PKCS11PIN', None)
-    with pkcs11(libn, slot, pin=pin) as session:
-        key, cert = find_key(session, keyname)
+    with pkcs11(libn, slot, pin=pin) as si:
+        key, cert = find_key(si, keyname)
         assert key is not None
         assert cert is not None
         return jsonify(dict(slot=slot,
                             mech=msg['mech'],
-                            signed=intarray2bytes(session.sign(key, data, mech)).encode('base64')))
+                            signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64')))
+
 
 @app.route("/<int:slot>", methods=['GET'])
 def _slot(slot):
@@ -57,6 +60,7 @@ def _slot(slot):
     except:
         pass
     return jsonify(r)
+
 
 @app.route("/", methods=['GET'])
 def _token():
