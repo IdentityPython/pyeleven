@@ -62,13 +62,14 @@ class pkcs11():
         self.library = library
         self.slot = slot
         self.pin = pin
+        self.exception = None
 
     def __enter__(self):
         s = _sessions()
         if self.library not in s:
             s.setdefault(self.library, dict())
 
-        if self.slot not in s[self.library]:
+        if self.slot not in s[self.library] or self.exception is not None:
             s[self.library].setdefault(self.slot, dict())
 
             lib = library(self.library)

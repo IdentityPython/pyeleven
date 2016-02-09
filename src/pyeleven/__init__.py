@@ -21,8 +21,29 @@ def _info():
     return jsonify(dict(library=libn))
 
 
-@app.route("/<int:slot>/<keyname>/sign", methods=['POST'])
-def _sign(slot, keyname):
+def _find_slot(label):
+    slots = []
+    lib = library(app.config['PKCS11MODULE'])
+    for slot in lib.getSlotList():
+        slot_info = lib.getSlotInfo(slot)
+        if slot_info.get('label') == label:
+            slots.append(slot)
+    return slots
+
+
+@app.route("/<slot_or_label>/<keyname>/sign", methods=['POST'])
+def _sign(slot_or_label, keyname):
+
+    slots = []
+    try:
+        slot = int(slot_or_label)
+        slots = [slot]
+    except ValueError:
+        slots = _find_slot(slot_or_label)
+
+    if not slots:
+        raise ValueError("No slot found matching %s" % slot_or_label)
+
     msg = request.get_json()
     if not type(msg) is dict:
         raise ValueError("request must be a dict")
@@ -34,17 +55,31 @@ def _sign(slot, keyname):
     libn = app.config['PKCS11MODULE']
     mech = mechanism(msg['mech'])
     pin = app.config.get('PKCS11PIN', None)
-    with pkcs11(libn, slot, pin=pin) as si:
-        key, cert = find_key(si, keyname)
-        assert key is not None
-        assert cert is not None
-        return jsonify(dict(slot=slot,
-                            mech=msg['mech'],
-                            signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64')))
+    for slot in slots:
+        try:
+            with pkcs11(libn, slot, pin=pin) as si:
+                key, cert = find_key(si, keyname)
+                assert key is not None
+                assert cert is not None
+                return jsonify(dict(slot=slot,
+                                    mech=msg['mech'],
+                                    signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64')))
+        except Exception, ex:
+            logging.error(ex)
+            with pkcs11(libn, slot, pin=pin) as si:
+                si.exception = ex  # invalidate it
+
+    raise ValueError("Unable to sign using any of the matching slots")
 
 
-@app.route("/<int:slot>", methods=['GET'])
-def _slot(slot):
+@app.route("/<slot_or_label>", methods=['GET'])
+def _slot(slot_or_label):
+    slot = -1
+    try:
+        slot = int(slot_or_label)
+    except ValueError:
+        slot = _find_slot(slot_or_label)
+
     lib = library(app.config['PKCS11MODULE'])
     r = dict()
     try:
