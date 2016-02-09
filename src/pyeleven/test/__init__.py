@@ -249,7 +249,7 @@ class TestPKCS11(unittest.TestCase):
 
     def test_sign(self):
         os.environ['SOFTHSM_CONF'] = softhsm_conf
-        with pk11.pkcs11(P11_MODULE, 0, "secret1") as session:
-            key, cert = find_key(session, 'test')
-            signed = intarray2bytes(session.sign(key, 'test', mechanism('RSAPKCS1')))
+        with pk11.pkcs11(P11_MODULE, 0, "secret1") as si:
+            key, cert = find_key(si, 'test')
+            signed = intarray2bytes(si.session.sign(key, 'test', mechanism('RSAPKCS1')))
             assert signed is not None
