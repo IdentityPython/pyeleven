@@ -1,14 +1,22 @@
-import base64
-from collections import namedtuple
 import threading
+from .pool import ObjectPool, allocation
+from .utils import intarray2bytes, cert_der2pem
+from random import Random
+import time
+import logging
+import PyKCS11
+from PyKCS11.LowLevel import CKA_ID, \
+    CKA_LABEL, \
+    CKA_CLASS, \
+    CKO_PRIVATE_KEY, \
+    CKO_CERTIFICATE, \
+    CKK_RSA, \
+    CKA_KEY_TYPE, \
+    CKA_VALUE
 
 __author__ = 'leifj'
 
-import logging
-import PyKCS11
 
-from PyKCS11.LowLevel import CKA_ID, CKA_LABEL, CKA_CLASS, CKO_PRIVATE_KEY, CKO_CERTIFICATE, CKK_RSA, \
-    CKA_KEY_TYPE, CKA_VALUE
 
 all_attributes = PyKCS11.CKA.keys()
 
@@ -22,7 +30,6 @@ all_attributes.remove(PyKCS11.LowLevel.CKA_COEFFICIENT)
 all_attributes = [e for e in all_attributes if isinstance(e, int)]
 
 thread_data = threading.local()
-_session_lock = threading.RLock()
 
 
 def _modules():
@@ -37,15 +44,25 @@ def _sessions():
     return thread_data.sessions
 
 
-def mechanism(mech):
-    mn = "Mechanism%s" % mech
-    return getattr(PyKCS11, mn)
+def _pools():
+    if not hasattr(thread_data, 'pools'):
+        thread_data.pools = dict()
+    return thread_data.pools
 
 
-def library(lib_name):
+def reset():
+    _pools()
+    _sessions()
+    _modules()
+    thread_data.pools = dict()
+    thread_data.sessions = dict()
+    thread_data.modules = dict()
+
+
+def load_library(lib_name):
     modules = _modules()
-    if not lib_name in modules:
-        logging.debug("loading library %s" % lib_name)
+    if lib_name not in modules:
+        logging.debug("loading load_library %s" % lib_name)
         lib = PyKCS11.PyKCS11Lib()
         assert type(lib_name) == str  # lib.load does not like unicode
         lib.load(lib_name)
@@ -54,80 +71,133 @@ def library(lib_name):
 
     return modules[lib_name]
 
-SessionInfo = namedtuple('SessionInfo', ['session', 'keys'])
 
-class pkcs11():
+class SessionInfo(object):
 
-    def __init__(self, library, slot, pin=None):
-        self.library = library
+    def __init__(self, session, slot):
+        self.session = session
         self.slot = slot
-        self.pin = pin
-        self.exception = None
+        self.keys = {}
+        self.use_count = 0
 
-    def __enter__(self):
-        s = _sessions()
-        if self.library not in s:
-            s.setdefault(self.library, dict())
+    @property
+    def priority(self):
+        return self.use_count
 
-        if self.slot not in s[self.library] or self.exception is not None:
-            s[self.library].setdefault(self.slot, dict())
+    def __str__(self):
+        return "SessionInfo[session=%s,slot=%d,use_count=%d,keys=%d]" % (self.session, self.slot, self.use_count, len(self.keys))
 
-            lib = library(self.library)
-            session = lib.openSession(self.slot)
-            if self.pin is not None:
-                session.login(self.pin)
-            s[self.library][self.slot] = SessionInfo(session=session, keys=dict())
+    def __cmp__(self, other):
+        return cmp(self.use_count, other.use_count)
 
-        if self.slot not in s[self.library]:
-            raise EnvironmentError("Unable to open session")
+    def find_object(self, template):
+        for o in self.session.findObjects(template):
+            logging.debug("Found pkcs11 object: %s" % o)
+            return o
+        return None
 
-        return s[self.library][self.slot]
+    def get_object_attributes(self, o):
+        attributes = self.session.getAttributeValue(o, all_attributes)
+        return dict(zip(all_attributes, attributes))
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+    def find_key(self, keyname, find_cert=True):
+        if keyname not in self.keys:
+            key = self.find_object([(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
+            if key is None:
+                return None, None
+            key_a = self.get_object_attributes(key)
+            cert_pem = None
+            if find_cert:
+                cert = self.find_object([(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
+                if cert is not None:
+                    cert_a = self.get_object_attributes(cert)
+                    cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
+                    logging.debug(cert)
+            self.keys[keyname] = (key, cert_pem)
+
+        return self.keys[keyname]
+
+    @staticmethod
+    def open(lib, slot, pin=None):
+        sessions = _sessions()
+        if slot not in sessions:
+            session = lib.openSession(slot)
+            if pin is not None:
+                session.login(pin)
+            si = SessionInfo(session=session, slot=slot)
+            sessions[slot] = si
+        #print "opened session for %s:%d" % (lib, slot)
+        return sessions[slot]
+
+    @staticmethod
+    def close_slot(slot):
+        sessions = _sessions()
+        if slot in sessions:
+            del sessions[slot]
+
+    def close(self):
+        SessionInfo.close_slot(self.slot)
 
 
-def intarray2bytes(x):
-    return ''.join(chr(i) for i in x)
+def _find_slot(label, lib):
+    slots = []
+    for slot in lib.getSlotList():
+        token_info = lib.getTokenInfo(slot)
+        if label == token_info.label.strip():
+            slots.append(int(slot))
+    return slots
 
 
-def find_object(session, template):
-    for o in session.session.findObjects(template):
-        logging.debug("Found pkcs11 object: %s" % o)
-        return o
-    return None
+def slots_for_label(label, lib):
+    try:
+        slot = int(label)
+        return [slot]
+    except ValueError:
+        return _find_slot(label, lib)
+
+seed = Random(time.time())
 
 
-def get_object_attributes(session, o):
-    attributes = session.session.getAttributeValue(o, all_attributes)
-    return dict(zip(all_attributes, attributes))
+def pkcs11(library_name, label, pin=None, low_mark=1):
+    pools = _pools()
+    sessions = _sessions()
 
+    max_slots = len(slots_for_label(label, load_library(library_name)))
 
-def cert_der2pem(der):
-    x = base64.standard_b64encode(der)
-    r = "-----BEGIN CERTIFICATE-----\n"
-    while len(x) > 64:
-        r += x[0:64]
-        r += "\n"
-        x = x[64:]
-    r += x
-    r += "\n"
-    r += "-----END CERTIFICATE-----"
-    return r
+    def _del(*args, **kwargs):
+        si = args[0]
+        sd = kwargs['slots']
+        if si.slot in sd:
+            del sd[si.slot]
+        si.close()
 
+    def _bump(si):
+        si.use_count += 1
 
-def find_key(session, keyname):
-    if keyname not in session.keys:
-        key = find_object(session, [(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
-        if key is None:
-            return None, None
-        key_a = get_object_attributes(session, key)
-        cert = find_object(session, [(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
-        cert_pem = None
-        if cert is not None:
-            cert_a = get_object_attributes(session, cert)
-            cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
-            logging.debug(cert)
-        session.keys[keyname] = (key, cert_pem)
+    def _get(*args, **kwargs):
+        lib = load_library(library_name)
+        sd = kwargs['slots']
 
-    return session.keys[keyname]
+        def _refill():  # if sd is getting a bit light - fill it back up
+            if len(sd) < low_mark:
+                for slot in slots_for_label(label, lib):
+                    #print "found slot %d during refill" % slot
+                    sd[slot] = True
+
+        random_slot = None
+        while True:
+            _refill()
+            k = sd.keys()
+            random_slot = seed.choice(k)
+            #print random_slot
+            try:
+                return SessionInfo.open(lib, random_slot, pin)
+            except Exception, ex:  # on first suspicion of failure - force the slot to be recreated
+                if random_slot in sd:
+                    del sd[random_slot]
+                SessionInfo.close_slot(random_slot)
+                time.sleep(50/1000)  # TODO - make retry delay configurable
+                logging.error(ex)
+
+    return allocation(pools.setdefault(label, ObjectPool(_get, _del, _bump, maxSize=max_slots, slots=dict())))
+

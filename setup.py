@@ -9,8 +9,9 @@ README = open(os.path.join(here, 'README.md')).read()
 version = '0.0.1'
 
 install_requires = [
-    'flask',
-    'pykcs11'
+      'flask',
+      'pykcs11',
+      'retrying'
 ]
 
 setup(name='pyeleven',
