@@ -114,12 +114,17 @@ def _token():
     lib = load_library(library_name())
     r = dict()
     token_labels = dict()
-    r['slots'] = lib.getSlotList()
-    for slot in r['slots']:
-        ti = lib.getTokenInfo(slot)
-        lst = token_labels.setdefault(ti.label.strip(), [])
-        lst.append(slot)
+    slots = []
+    for slot in lib.getSlotList():
+        try:
+            ti = lib.getTokenInfo(slot)
+            lst = token_labels.setdefault(ti.label.strip(), [])
+            lst.append(slot)
+            slots.append(slot)
+        except Exception, ex:
+            logging.warning(ex)
     r['labels'] = token_labels
+    r['slots'] = slots
     return jsonify(r)
 
 

@@ -16,8 +16,6 @@ from PyKCS11.LowLevel import CKA_ID, \
 
 __author__ = 'leifj'
 
-
-
 all_attributes = PyKCS11.CKA.keys()
 
 # remove the CKR_ATTRIBUTE_SENSITIVE attributes since we can't get
@@ -73,7 +71,6 @@ def load_library(lib_name):
 
 
 class SessionInfo(object):
-
     def __init__(self, session, slot):
         self.session = session
         self.slot = slot
@@ -85,7 +82,8 @@ class SessionInfo(object):
         return self.use_count
 
     def __str__(self):
-        return "SessionInfo[session=%s,slot=%d,use_count=%d,keys=%d]" % (self.session, self.slot, self.use_count, len(self.keys))
+        return "SessionInfo[session=%s,slot=%d,use_count=%d,keys=%d]" % (
+        self.session, self.slot, self.use_count, len(self.keys))
 
     def __cmp__(self, other):
         return cmp(self.use_count, other.use_count)
@@ -126,7 +124,7 @@ class SessionInfo(object):
                 session.login(pin)
             si = SessionInfo(session=session, slot=slot)
             sessions[slot] = si
-        #print "opened session for %s:%d" % (lib, slot)
+        # print "opened session for %s:%d" % (lib, slot)
         return sessions[slot]
 
     @staticmethod
@@ -142,9 +140,12 @@ class SessionInfo(object):
 def _find_slot(label, lib):
     slots = []
     for slot in lib.getSlotList():
-        token_info = lib.getTokenInfo(slot)
-        if label == token_info.label.strip():
-            slots.append(int(slot))
+        try:
+            token_info = lib.getTokenInfo(slot)
+            if label == token_info.label.strip():
+                slots.append(int(slot))
+        except Exception, ex:
+            pass
     return slots
 
 
@@ -155,14 +156,16 @@ def slots_for_label(label, lib):
     except ValueError:
         return _find_slot(label, lib)
 
+
 seed = Random(time.time())
 
 
-def pkcs11(library_name, label, pin=None, low_mark=1):
+def pkcs11(library_name, label, pin=None, max_slots=None):
     pools = _pools()
     sessions = _sessions()
 
-    max_slots = len(slots_for_label(label, load_library(library_name)))
+    if max_slots is None:
+        max_slots = len(slots_for_label(label, load_library(library_name)))
 
     def _del(*args, **kwargs):
         si = args[0]
@@ -179,9 +182,9 @@ def pkcs11(library_name, label, pin=None, low_mark=1):
         sd = kwargs['slots']
 
         def _refill():  # if sd is getting a bit light - fill it back up
-            if len(sd) < low_mark:
+            if len(sd) < max_slots:
                 for slot in slots_for_label(label, lib):
-                    #print "found slot %d during refill" % slot
+                    # print "found slot %d during refill" % slot
                     sd[slot] = True
 
         random_slot = None
@@ -189,15 +192,14 @@ def pkcs11(library_name, label, pin=None, low_mark=1):
             _refill()
             k = sd.keys()
             random_slot = seed.choice(k)
-            #print random_slot
+            # print random_slot
             try:
                 return SessionInfo.open(lib, random_slot, pin)
             except Exception, ex:  # on first suspicion of failure - force the slot to be recreated
                 if random_slot in sd:
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)
-                time.sleep(50/1000)  # TODO - make retry delay configurable
+                time.sleep(50 / 1000)  # TODO - make retry delay configurable
                 logging.error(ex)
 
     return allocation(pools.setdefault(label, ObjectPool(_get, _del, _bump, maxSize=max_slots, slots=dict())))
-
