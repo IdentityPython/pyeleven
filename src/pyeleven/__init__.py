@@ -93,15 +93,15 @@ def _slot(slot_or_label):
         r = dict()
         try:
             r['mechanisms'] = lib.getMechanismList(slot)
-        except PyKCS11Error, ex:
+        except (PyKCS11Error, KeyError, ValueError, IOError) as ex:
             r['mechanisms'] = {'error': str(ex)}
         try:
             r['slot'] = lib.getSlotInfo(slot).to_dict()
-        except PyKCS11Error, ex:
+        except (PyKCS11Error, KeyError, ValueError, IOError) as ex:
             r['slot'] = {'error': str(ex)}
         try:
             r['token'] = lib.getTokenInfo(slot).to_dict()
-        except PyKCS11Error, ex:
+        except (PyKCS11Error,  KeyError, ValueError, IOError) as ex:
             r['token'] = {'error': str(ex)}
 
         result.append(r)
