@@ -90,7 +90,6 @@ class SessionInfo(object):
 
     def find_object(self, template):
         for o in self.session.findObjects(template):
-            logging.debug("Found pkcs11 object: %s" % o)
             return o
         return None
 
