@@ -124,7 +124,12 @@ class SessionInfo(object):
         if slot not in sessions:
             session = lib.openSession(slot)
             if pin is not None:
+                try:
                 session.login(pin)
+                except PyKCS11.PyKCS11Error as ex:
+                    logging.debug('Login failed: {!r}'.format(ex))
+                    if 'CKR_USER_ALREADY_LOGGED_IN' not in str(ex):
+                        raise
             si = SessionInfo(session=session, slot=slot)
             sessions[slot] = si
         # print "opened session for %s:%d" % (lib, slot)
