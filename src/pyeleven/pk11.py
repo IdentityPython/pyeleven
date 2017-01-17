@@ -196,7 +196,8 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     sd[slot] = True
 
         random_slot = None
-        while True:
+        retry=10
+        while retry:
             _refill()
             k = sd.keys()
             random_slot = seed.choice(k)
@@ -209,5 +210,8 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                 SessionInfo.close_slot(random_slot)
                 time.sleep(50 / 1000)  # TODO - make retry delay configurable
                 logging.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
+                retry -= 1
+                if not retry:
+                    raise
 
     return allocation(pools.setdefault(label, ObjectPool(_get, _del, _bump, maxSize=max_slots, slots=dict())))
