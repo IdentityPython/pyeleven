@@ -93,9 +93,9 @@ class SessionInfo(object):
             return o
         return None
 
-    def get_object_attributes(self, o):
-        attributes = self.session.getAttributeValue(o, all_attributes)
-        return dict(zip(all_attributes, attributes))
+    def get_object_attributes(self, o, attrs=all_attributes):
+        attributes = self.session.getAttributeValue(o, attrs)
+        return dict(zip(attrs, attributes))
 
     def find_key(self, keyname, find_cert=True):
         if keyname not in self.keys:
@@ -103,9 +103,10 @@ class SessionInfo(object):
             if key is None:
                 logging.debug('Private RSA key with CKA_LABEL {!r} not found'.format(keyname))
                 return None, None
-            key_a = self.get_object_attributes(key)
             cert_pem = None
             if find_cert:
+                key_a = self.get_object_attributes(key, attrs = [CKA_ID])
+                logging.debug('Looking for certificate with CKA_ID {!r}'.format(key_a[CKA_ID]))
                 cert = self.find_object([(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
                 if cert is not None:
                     cert_a = self.get_object_attributes(cert)
