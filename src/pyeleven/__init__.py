@@ -46,10 +46,14 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
     with pkcs11(library_name(), label, pin()) as si:
         logging.debug('Looking for key with keyname {!r}'.format(keyname))
         key, cert = si.find_key(keyname, find_cert=include_cert)
-        assert key is not None
+        if key is None:
+            logging.warning('Found no key using label {!r}, keyname {!r}'.format(label, keyname))
+            return {'error': 'Key not found'}
+        if require_cert and not cert:
+            logging.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
+            return {'error': 'Certificate not found'}
+        logging.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
         result = dict(slot=label,signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
-        if require_cert:
-            assert cert is not None
         if cert and include_cert:
             result['cert'] = cert
         return result
