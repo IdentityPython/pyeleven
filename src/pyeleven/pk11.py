@@ -101,6 +101,7 @@ class SessionInfo(object):
         if keyname not in self.keys:
             key = self.find_object([(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
             if key is None:
+                logging.debug('Private RSA key with CKA_LABEL {!r} not found'.format(keyname))
                 return None, None
             key_a = self.get_object_attributes(key)
             cert_pem = None
@@ -109,7 +110,9 @@ class SessionInfo(object):
                 if cert is not None:
                     cert_a = self.get_object_attributes(cert)
                     cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
-                    logging.debug(cert)
+                    logging.debug('Certificate found:\n{!r}'.format(cert))
+                else:
+                    logging.warning('Found no certificate for key with keyname {!r}'.format(keyname))
             self.keys[keyname] = (key, cert_pem)
 
         return self.keys[keyname]
@@ -199,6 +202,6 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)
                 time.sleep(50 / 1000)  # TODO - make retry delay configurable
-                logging.error(ex)
+                logging.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
 
     return allocation(pools.setdefault(label, ObjectPool(_get, _del, _bump, maxSize=max_slots, slots=dict())))

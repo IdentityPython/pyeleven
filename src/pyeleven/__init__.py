@@ -44,6 +44,7 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
         include_cert = True
 
     with pkcs11(library_name(), label, pin()) as si:
+        logging.debug('Looking for key with keyname {!r}'.format(keyname))
         key, cert = si.find_key(keyname, find_cert=include_cert)
         assert key is not None
         result = dict(slot=label,signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
@@ -61,6 +62,7 @@ def _sign(slot_or_label, keyname):
     if not type(msg) is dict:
         raise ValueError("request must be a dict")
 
+    logging.debug('Signing data with slot_or_label {!r} and keyname {!r}\n'.format(slot_or_label, keyname))
     msg.setdefault('mech', 'RSAPKCS1')
     if 'data' not in msg:
         raise ValueError("missing 'data' in request")
