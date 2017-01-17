@@ -38,17 +38,26 @@ def _info():
     return jsonify(dict(library=library_name()))
 
 
-@retry(stop_max_attempt_number=max_retry)
+class PKCS11Exception(Exception):
+    pass
+
+
+def retryable_errors(ex):
+    return isinstance(ex, IOError) or isinstance(ex, PKCS11Exception)
+
+
+@retry(stop_max_attempt_number=max_retry, retry_on_exception=retryable_errors, wait_random_min=100, wait_random_max=500)
 def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
     if require_cert:
         include_cert = True
 
     with pkcs11(library_name(), label, pin()) as si:
         key, cert = si.find_key(keyname, find_cert=include_cert)
-        assert key is not None
+        if key is None:
+            raise PKCS11Exception("Key %s not found" % keyname)
         result = dict(slot=label,signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
-        if require_cert:
-            assert cert is not None
+        if require_cert and cert is None:
+            raise PKCS11Exception("Certificate for %s is required but missing" % keyname)
         if cert and include_cert:
             result['cert'] = cert
         return result
