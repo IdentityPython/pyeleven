@@ -93,23 +93,27 @@ class SessionInfo(object):
             return o
         return None
 
-    def get_object_attributes(self, o):
-        attributes = self.session.getAttributeValue(o, all_attributes)
-        return dict(zip(all_attributes, attributes))
+    def get_object_attributes(self, o, attrs=all_attributes):
+        attributes = self.session.getAttributeValue(o, attrs)
+        return dict(zip(attrs, attributes))
 
     def find_key(self, keyname, find_cert=True):
         if keyname not in self.keys:
             key = self.find_object([(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
             if key is None:
+                logging.debug('Private RSA key with CKA_LABEL {!r} not found'.format(keyname))
                 return None, None
-            key_a = self.get_object_attributes(key)
             cert_pem = None
             if find_cert:
+                key_a = self.get_object_attributes(key, attrs = [CKA_ID])
+                logging.debug('Looking for certificate with CKA_ID {!r}'.format(key_a[CKA_ID]))
                 cert = self.find_object([(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
                 if cert is not None:
                     cert_a = self.get_object_attributes(cert)
                     cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
-                    logging.debug(cert)
+                    logging.debug('Certificate found:\n{!r}'.format(cert))
+                else:
+                    logging.warning('Found no certificate for key with keyname {!r}'.format(keyname))
             self.keys[keyname] = (key, cert_pem)
 
         return self.keys[keyname]
@@ -120,7 +124,12 @@ class SessionInfo(object):
         if slot not in sessions:
             session = lib.openSession(slot)
             if pin is not None:
-                session.login(pin)
+                try:
+                    session.login(pin)
+                except PyKCS11.PyKCS11Error as ex:
+                    logging.debug('Login failed: {!r}'.format(ex))
+                    if 'CKR_USER_ALREADY_LOGGED_IN' not in str(ex):
+                        raise
             si = SessionInfo(session=session, slot=slot)
             sessions[slot] = si
         # print "opened session for %s:%d" % (lib, slot)
@@ -187,7 +196,8 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     sd[slot] = True
 
         random_slot = None
-        while True:
+        retry=10
+        while retry:
             _refill()
             k = sd.keys()
             random_slot = seed.choice(k)
@@ -199,6 +209,9 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)
                 time.sleep(50 / 1000)  # TODO - make retry delay configurable
-                logging.error(ex)
+                logging.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
+                retry -= 1
+                if not retry:
+                    raise
 
     return allocation(pools.setdefault(label, ObjectPool(_get, _del, _bump, maxSize=max_slots, slots=dict())))

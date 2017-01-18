@@ -52,12 +52,16 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
         include_cert = True
 
     with pkcs11(library_name(), label, pin()) as si:
+        logging.debug('Looking for key with keyname {!r}'.format(keyname))
         key, cert = si.find_key(keyname, find_cert=include_cert)
         if key is None:
+            logging.warning('Found no key using label {!r}, keyname {!r}'.format(label, keyname))
             raise PKCS11Exception("Key %s not found" % keyname)
-        result = dict(slot=label,signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
         if require_cert and cert is None:
+            logging.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
             raise PKCS11Exception("Certificate for %s is required but missing" % keyname)
+        logging.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
+        result = dict(slot=label, signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
         if cert and include_cert:
             result['cert'] = cert
         return result
@@ -70,6 +74,7 @@ def _sign(slot_or_label, keyname):
     if not type(msg) is dict:
         raise ValueError("request must be a dict")
 
+    logging.debug('Signing data with slot_or_label {!r} and keyname {!r}\n'.format(slot_or_label, keyname))
     msg.setdefault('mech', 'RSAPKCS1')
     if 'data' not in msg:
         raise ValueError("missing 'data' in request")
