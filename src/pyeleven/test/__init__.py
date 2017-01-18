@@ -318,6 +318,15 @@ class FlaskTestCase(TestCase):
         assert 1 in test_slots
         assert 0 in test_slots
 
+    def test_slot_objects(self):
+        rv = self.app.get("/0/objects")
+        assert rv.data
+        d = json.loads(rv.data)
+        assert d
+        assert 'session' in d
+        assert 'objects' in d
+        assert d['objects'] != []
+
 
 class TestPKCS11(unittest.TestCase):
     def setUp(self):
