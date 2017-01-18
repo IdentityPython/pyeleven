@@ -242,6 +242,17 @@ class FlaskTestCase(TestCase):
         assert 'slot' in d
         assert 'signed' in d
 
+    def test_bad_sign(self):
+        try:
+            rv = self.app.post("/0/doesnotexist/sign",
+                               content_type='application/json',
+                               data=json.dumps(dict(mech='RSAPKCS1', data=b64encode("test"))))
+            assert False
+        except Exception, ex:
+            from traceback import print_exc
+            print_exc(ex)
+            assert True
+
     def test_1000_sign(self):
         ts = time.time()
         for i in range(0, 999):

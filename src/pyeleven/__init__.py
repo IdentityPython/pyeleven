@@ -38,7 +38,15 @@ def _info():
     return jsonify(dict(library=library_name()))
 
 
-@retry(stop_max_attempt_number=max_retry)
+class PKCS11Exception(Exception):
+    pass
+
+
+def retryable_errors(ex):
+    return isinstance(ex, IOError) or isinstance(ex, PKCS11Exception)
+
+
+@retry(stop_max_attempt_number=max_retry, retry_on_exception=retryable_errors, wait_random_min=100, wait_random_max=500)
 def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
     if require_cert:
         include_cert = True
@@ -48,12 +56,12 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
         key, cert = si.find_key(keyname, find_cert=include_cert)
         if key is None:
             logging.warning('Found no key using label {!r}, keyname {!r}'.format(label, keyname))
-            return {'error': 'Key not found'}
-        if require_cert and not cert:
+            raise PKCS11Exception("Key %s not found" % keyname)
+        if require_cert and cert is None:
             logging.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
-            return {'error': 'Certificate not found'}
+            raise PKCS11Exception("Certificate for %s is required but missing" % keyname)
         logging.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
-        result = dict(slot=label,signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
+        result = dict(slot=label, signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
         if cert and include_cert:
             result['cert'] = cert
         return result
