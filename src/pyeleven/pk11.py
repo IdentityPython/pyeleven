@@ -97,6 +97,22 @@ class SessionInfo(object):
         attributes = self.session.getAttributeValue(o, attrs)
         return dict(zip(attrs, attributes))
 
+    def get_object_friendly_attrs(self, o):
+        attrs = [CKA_ID, CKA_LABEL, CKA_CLASS, CKA_KEY_TYPE]
+        attributes = self.session.getAttributeValue(o, attrs)
+        res = {}
+        for q, a in zip(attrs, attributes):
+            if a is None:
+                continue
+            name = PyKCS11.CKA[q]
+            if q == CKA_ID:
+                res[name] = ''.join(['{:02x}'.format(x) for x in a])
+            elif q == CKA_KEY_TYPE:
+                res[name] = PyKCS11.CKK[a]
+            else:
+                res[name] = str(a)
+        return res
+
     def find_key(self, keyname, find_cert=True):
         if keyname not in self.keys:
             key = self.find_object([(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])

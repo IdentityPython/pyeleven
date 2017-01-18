@@ -123,6 +123,21 @@ def _slot(slot_or_label):
     return jsonify(dict(slots=result))
 
 
+@app.route("/<slot_or_label>/objects", methods=['GET'])
+def _slot_keys(slot_or_label):
+    res = {}
+    with pkcs11(library_name(), slot_or_label, pin()) as si:
+        res['session'] = si.session.getSessionInfo().to_dict()
+        res['objects'] = []
+        for this in si.session.findObjects():
+            try:
+                attrs = si.get_object_friendly_attrs(this)
+                res['objects'].append(attrs)
+            except Exception as ex:
+                logging.error('Failed fetching attributes for object, error: {!s}'.format(ex))
+    return jsonify(res)
+
+
 @app.route("/", methods=['GET'])
 def _token():
     lib = load_library(library_name())
