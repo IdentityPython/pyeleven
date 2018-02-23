@@ -60,7 +60,7 @@ def reset():
 def load_library(lib_name):
     modules = _modules()
     if lib_name not in modules:
-        logging.debug("loading load_library %s" % lib_name)
+        logging.debug('loading load_library {!r}'.format(lib_name))
         lib = PyKCS11.PyKCS11Lib()
         assert type(lib_name) == str  # lib.load does not like unicode
         lib.load(lib_name)
@@ -148,7 +148,7 @@ class SessionInfo(object):
                         raise
             si = SessionInfo(session=session, slot=slot)
             sessions[slot] = si
-        # print "opened session for %s:%d" % (lib, slot)
+        logging.debug('opened session for {!r}:{:d}'.format(lib, slot))
         return sessions[slot]
 
     @staticmethod
@@ -208,23 +208,22 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
         def _refill():  # if sd is getting a bit light - fill it back up
             if len(sd) < max_slots:
                 for slot in slots_for_label(label, lib):
-                    # print "found slot %d during refill" % slot
+                    logging.debug('found slot {!r} for label {!r} during refill'.format(slot, label))
                     sd[slot] = True
 
         random_slot = None
         retry=10
-        while retry:
+        while retry > 0:
             _refill()
             k = sd.keys()
             random_slot = seed.choice(k)
-            # print random_slot
             try:
                 return SessionInfo.open(lib, random_slot, pin)
             except Exception, ex:  # on first suspicion of failure - force the slot to be recreated
                 if random_slot in sd:
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)
-                time.sleep(50 / 1000)  # TODO - make retry delay configurable
+                time.sleep(0.2)  # TODO - make retry delay configurable
                 logging.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
                 retry -= 1
                 if not retry:
