@@ -1,12 +1,15 @@
-from base64 import b64decode
-from flask import Flask, request, jsonify
-from .pk11 import pkcs11, load_library, slots_for_label
-from .utils import mechanism, intarray2bytes
-import os
 import logging
-from .pool import allocation
-from retrying import retry
+import os
+from base64 import b64decode, b64encode
+
+import six
 from PyKCS11 import PyKCS11Error
+from flask import Flask, request, jsonify
+from retrying import retry
+
+from pyeleven.pk11 import pkcs11, load_library, slots_for_label
+from pyeleven.pool import allocation
+from pyeleven.utils import mechanism, intarray2bytes
 
 __author__ = 'leifj'
 
@@ -61,7 +64,7 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
             logging.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
             raise PKCS11Exception("Certificate for %s is required but missing" % keyname)
         logging.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
-        result = dict(slot=label, signed=intarray2bytes(si.session.sign(key, data, mech)).encode('base64'))
+        result = dict(slot=label, signed=b64encode(intarray2bytes(si.session.sign(key, data, mech))).decode('utf-8'))
         if cert and include_cert:
             result['cert'] = cert
         return result
@@ -79,8 +82,11 @@ def _sign(slot_or_label, keyname):
     if 'data' not in msg:
         raise ValueError("missing 'data' in request")
     data = b64decode(msg['data'])
+    if six.PY3:
+        data = data.decode('utf-8')
     mech = mechanism(msg['mech'])
-    return jsonify(_do_sign(slot_or_label, keyname, mech, data, require_cert=True))
+    result = _do_sign(slot_or_label, keyname, mech, data, require_cert=True)
+    return jsonify(result)
 
 
 @app.route("/<slot_or_label>/<keyname>/rawsign", methods=['POST'])
@@ -150,7 +156,7 @@ def _token():
             lst = token_labels.setdefault(ti.label.strip(), [])
             lst.append(slot)
             slots.append(slot)
-        except Exception, ex:
+        except Exception as ex:
             logging.warning(ex)
     r['labels'] = token_labels
     r['slots'] = slots

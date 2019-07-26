@@ -1,7 +1,9 @@
+import six
 import threading
-from .pool import ObjectPool, allocation
-from .utils import intarray2bytes, cert_der2pem
+from pyeleven.pool import ObjectPool, allocation
+from pyeleven.utils import intarray2bytes, cert_der2pem
 from random import Random
+from operator import eq, lt
 import time
 import logging
 import PyKCS11
@@ -16,7 +18,7 @@ from PyKCS11.LowLevel import CKA_ID, \
 
 __author__ = 'leifj'
 
-all_attributes = PyKCS11.CKA.keys()
+all_attributes = list(PyKCS11.CKA.keys())
 
 # remove the CKR_ATTRIBUTE_SENSITIVE attributes since we can't get
 all_attributes.remove(PyKCS11.LowLevel.CKA_PRIVATE_EXPONENT)
@@ -62,7 +64,13 @@ def load_library(lib_name):
     if lib_name not in modules:
         logging.debug('loading load_library {!r}'.format(lib_name))
         lib = PyKCS11.PyKCS11Lib()
-        assert type(lib_name) == str  # lib.load does not like unicode
+        # lib.load needs to be str for current python version
+        if six.PY2:
+            if not isinstance(lib_name, six.binary_type):
+                lib_name = lib_name.encode()
+        else:
+            if not isinstance(lib_name, six.text_type):
+                lib_name = lib_name.decode('utf-8')
         lib.load(lib_name)
         lib.lib.C_Initialize()
         modules[lib_name] = lib
@@ -83,10 +91,13 @@ class SessionInfo(object):
 
     def __str__(self):
         return "SessionInfo[session=%s,slot=%d,use_count=%d,keys=%d]" % (
-        self.session, self.slot, self.use_count, len(self.keys))
+            self.session, self.slot, self.use_count, len(self.keys))
 
-    def __cmp__(self, other):
-        return cmp(self.use_count, other.use_count)
+    def __eq__(self, other):
+        return eq(self.use_count, other.use_count)
+
+    def __lt__(self, other):
+        return lt(self.use_count, other.use_count)
 
     def find_object(self, template):
         for o in self.session.findObjects(template):
@@ -168,7 +179,7 @@ def _find_slot(label, lib):
             token_info = lib.getTokenInfo(slot)
             if label == token_info.label.strip():
                 slots.append(int(slot))
-        except Exception, ex:
+        except Exception:
             pass
     return slots
 
@@ -185,8 +196,11 @@ seed = Random(time.time())
 
 
 def pkcs11(library_name, label, pin=None, max_slots=None):
+    #print('pkcs11')
     pools = _pools()
+    #print('pkcs11._pools')
     sessions = _sessions()
+    #print('pkcs11._sessions')
 
     if max_slots is None:
         max_slots = len(slots_for_label(label, load_library(library_name)))
@@ -215,11 +229,11 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
         retry=10
         while retry > 0:
             _refill()
-            k = sd.keys()
+            k = list(sd.keys())
             random_slot = seed.choice(k)
             try:
                 return SessionInfo.open(lib, random_slot, pin)
-            except Exception, ex:  # on first suspicion of failure - force the slot to be recreated
+            except Exception as ex:  # on first suspicion of failure - force the slot to be recreated
                 if random_slot in sd:
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)

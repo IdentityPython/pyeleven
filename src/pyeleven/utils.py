@@ -1,9 +1,12 @@
+import six
 import base64
 import PyKCS11
 
 
 def intarray2bytes(x):
-    return ''.join(chr(i) for i in x)
+    if six.PY2:
+        return ''.join(chr(i) for i in x)
+    return b''.join(chr(i).encode() for i in x)
 
 
 def mechanism(mech):
@@ -13,6 +16,8 @@ def mechanism(mech):
 
 def cert_der2pem(der):
     x = base64.standard_b64encode(der)
+    if six.PY3:
+        x = x.decode('utf-8')
     r = "-----BEGIN CERTIFICATE-----\n"
     while len(x) > 64:
         r += x[0:64]

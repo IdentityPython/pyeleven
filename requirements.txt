@@ -1,3 +1,4 @@
+six
 flask
 pykcs11
 retrying
