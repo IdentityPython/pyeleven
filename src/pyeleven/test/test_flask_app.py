@@ -4,22 +4,21 @@ Testing the PKCS#11 shim layer
 import os
 import time
 from base64 import b64encode
-from unittest import TestCase
 
 import six
 from flask import json
+from unittest import TestCase
 
-from pyeleven.test import P11_MODULE
-from pyeleven.test.utils import TemporarySoftHSM
+from pyeleven.test import P11_MODULE, TemporarySoftHSM
 
 __author__ = 'leifj'
 
 
 class FlaskTestCase(TestCase):
-    softhsm = TemporarySoftHSM.get_instance()
 
     def setUp(self):
         from .. import app
+        self.softhsm = TemporarySoftHSM.get_instance()
         os.environ['SOFTHSM2_CONF'] = self.softhsm.softhsm_conf
         app.config['TESTING'] = True
         app.config['PKCS11MODULE'] = P11_MODULE

@@ -8,16 +8,15 @@ import pkg_resources
 from retrying import retry
 
 from pyeleven import pk11
-from pyeleven.test import P11_MODULE
-from pyeleven.test.utils import TemporarySoftHSM
+from pyeleven.test import P11_MODULE, TemporarySoftHSM
 from pyeleven.test.utils import ThreadPool
 from pyeleven.utils import mechanism, intarray2bytes
 
 
 class TestPKCS11(TestCase):
-    softhsm = TemporarySoftHSM.get_instance()
 
     def setUp(self):
+        self.softhsm = TemporarySoftHSM.get_instance()
         datadir = pkg_resources.resource_filename(__name__, 'data')
 
     def test_open_session(self):
@@ -91,6 +90,8 @@ class TestPKCS11(TestCase):
         pk11.reset()
         with pk11.pkcs11(P11_MODULE, 'test', "secret1") as si:
             key, cert = si.find_key('test')
+            self.assertIsNotNone(key)
+            self.assertIsNotNone(cert)
             signed = intarray2bytes(si.session.sign(key, 'test', mechanism('RSAPKCS1')))
             self.assertIsNotNone(signed)
 
@@ -119,7 +120,10 @@ class TestPKCS11(TestCase):
 
         def _sign(msg):
             with pk11.pkcs11(P11_MODULE, 'test', "secret1") as si:
+                self.assertIsNotNone(si)
                 key, cert = si.find_key('test')
+                self.assertIsNotNone(key)
+                self.assertIsNotNone(cert)
                 signed = intarray2bytes(si.session.sign(key, msg, mechanism('RSAPKCS1')))
                 self.assertIsNotNone(signed)
 
