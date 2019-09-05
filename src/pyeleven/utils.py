@@ -3,6 +3,10 @@ import base64
 import PyKCS11
 
 
+class PyelevenException(Exception):
+    pass
+
+
 def intarray2bytes(x):
     if six.PY2:
         return ''.join(chr(i) for i in x)

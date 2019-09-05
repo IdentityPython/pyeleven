@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from collections import Counter
 from unittest import TestCase
 
 import pkg_resources
@@ -19,10 +20,6 @@ class TestPKCS11(TestCase):
     def setUp(self):
         datadir = pkg_resources.resource_filename(__name__, 'data')
 
-    #@classmethod
-    #def tearDownClass(cls):
-    #    cls.softhsm.clean_up()
-
     def test_open_session(self):
         os.environ['SOFTHSM2_CONF'] = self.softhsm.softhsm_conf
         pk11.reset()
@@ -34,8 +31,6 @@ class TestPKCS11(TestCase):
         pk11.reset()
         lib = pk11.load_library(P11_MODULE)
         slots = pk11.slots_for_label('test', lib)
-        self.assertIn(1, slots)
-        self.assertIn(0, slots)
         self.assertEqual(len(slots), 2)
 
     def test_find_key(self):
@@ -50,7 +45,7 @@ class TestPKCS11(TestCase):
     def test_find_key_spread(self):
         os.environ['SOFTHSM2_CONF'] = self.softhsm.softhsm_conf
         pk11.reset()
-        hits = {0: 0, 1: 0}
+        hits = Counter()
 
         @retry(stop_max_attempt_number=20)
         def _try_sign():
@@ -66,8 +61,10 @@ class TestPKCS11(TestCase):
 
         for i in range(0, 99):
             _try_sign()
-        self.assertGreater(hits[0], 30)
-        self.assertGreater(hits[1], 30)
+
+        self.assertEqual(len(hits.keys()), 2)
+        for k in hits.keys():
+            self.assertGreater(hits[k], 30)
 
     def test_find_key_by_label(self):
         os.environ['SOFTHSM2_CONF'] = self.softhsm.softhsm_conf

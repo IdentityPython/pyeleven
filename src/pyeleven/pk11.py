@@ -1,8 +1,8 @@
 import six
 import threading
 from pyeleven.pool import ObjectPool, allocation
-from pyeleven.utils import intarray2bytes, cert_der2pem
-from random import Random
+from pyeleven.utils import intarray2bytes, cert_der2pem, PyelevenException
+from random import SystemRandom
 from operator import eq, lt
 import time
 import logging
@@ -173,14 +173,24 @@ class SessionInfo(object):
 
 
 def _find_slot(label, lib):
+    """
+    :param label: Token label
+    :type label: str
+    :param lib: PyKCS11Lib
+    :type lib: PyKCS11.PyKCS11Lib
+    :return: Slots with given token label
+    :rtype: list
+    """
     slots = []
     for slot in lib.getSlotList():
         try:
             token_info = lib.getTokenInfo(slot)
             if label == token_info.label.strip():
                 slots.append(int(slot))
-        except Exception:
+        except PyKCS11.PyKCS11Error:
             pass
+    if not slots:
+        raise PyelevenException('No slot for token label \"{}\" found'.format(label))
     return slots
 
 
@@ -192,15 +202,12 @@ def slots_for_label(label, lib):
         return _find_slot(label, lib)
 
 
-seed = Random(time.time())
+seed = SystemRandom()
 
 
 def pkcs11(library_name, label, pin=None, max_slots=None):
-    #print('pkcs11')
     pools = _pools()
-    #print('pkcs11._pools')
     sessions = _sessions()
-    #print('pkcs11._sessions')
 
     if max_slots is None:
         max_slots = len(slots_for_label(label, load_library(library_name)))
@@ -225,8 +232,7 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     logging.debug('found slot {!r} for label {!r} during refill'.format(slot, label))
                     sd[slot] = True
 
-        random_slot = None
-        retry=10
+        retry = 10
         while retry > 0:
             _refill()
             k = list(sd.keys())

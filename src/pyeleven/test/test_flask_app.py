@@ -26,10 +26,6 @@ class FlaskTestCase(TestCase):
         app.config['PKCS11PIN'] = 'secret1'
         self.app = app.test_client()
 
-    #@classmethod
-    #def tearDownClass(cls):
-    #    cls.softhsm.clean_up()
-
     def test_info(self):
         rv = self.app.get("/info")
         self.assertIsNotNone(rv.data)
@@ -130,15 +126,11 @@ class FlaskTestCase(TestCase):
         d = json.loads(rv.data)
         self.assertIsNotNone(d)
         self.assertIn('slots', d)
-        self.assertEqual(len(d['slots']), 2)
-        self.assertIn(1, d['slots'])
-        self.assertIn(0, d['slots'])
+        self.assertEqual(len(d['slots']), 3)  # SoftHSM2 lists an additional slot that is uninitialized
         self.assertIn('labels', d)
         self.assertIn('test', d['labels'])
         test_slots = d['labels']['test']
         self.assertEqual(len(test_slots), 2)
-        self.assertIn(1, test_slots)
-        self.assertIn(0, test_slots)
 
     def test_slot_objects(self):
         rv = self.app.get("/test/objects")
