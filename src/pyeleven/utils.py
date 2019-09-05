@@ -3,7 +3,7 @@ import base64
 import PyKCS11
 
 
-class PyelevenException(Exception):
+class PKCS11Exception(Exception):
     pass
 
 
