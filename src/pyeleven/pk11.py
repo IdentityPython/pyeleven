@@ -1,7 +1,8 @@
 import six
 import threading
+
 from pyeleven.pool import ObjectPool, allocation
-from pyeleven.utils import intarray2bytes, cert_der2pem, PyelevenException
+from pyeleven.utils import intarray2bytes, cert_der2pem, PKCS11Exception
 from random import SystemRandom
 from operator import eq, lt
 import time
@@ -29,6 +30,7 @@ all_attributes.remove(PyKCS11.LowLevel.CKA_EXPONENT_2)
 all_attributes.remove(PyKCS11.LowLevel.CKA_COEFFICIENT)
 all_attributes = [e for e in all_attributes if isinstance(e, int)]
 
+logger = logging.getLogger(__name__)
 thread_data = threading.local()
 
 
@@ -62,7 +64,7 @@ def reset():
 def load_library(lib_name):
     modules = _modules()
     if lib_name not in modules:
-        logging.debug('loading load_library {!r}'.format(lib_name))
+        logger.debug('loading load_library {!r}'.format(lib_name))
         lib = PyKCS11.PyKCS11Lib()
         # lib.load needs to be str for current python version
         if six.PY2:
@@ -125,22 +127,24 @@ class SessionInfo(object):
         return res
 
     def find_key(self, keyname, find_cert=True):
+        if keyname is None:
+            raise PKCS11Exception('keyname can not be None')
         if keyname not in self.keys:
             key = self.find_object([(CKA_LABEL, keyname), (CKA_CLASS, CKO_PRIVATE_KEY), (CKA_KEY_TYPE, CKK_RSA)])
             if key is None:
-                logging.debug('Private RSA key with CKA_LABEL {!r} not found'.format(keyname))
+                logger.debug('Private RSA key with CKA_LABEL {!r} not found'.format(keyname))
                 return None, None
             cert_pem = None
             if find_cert:
                 key_a = self.get_object_attributes(key, attrs = [CKA_ID])
-                logging.debug('Looking for certificate with CKA_ID {!r}'.format(key_a[CKA_ID]))
+                logger.debug('Looking for certificate with CKA_ID {!r}'.format(key_a[CKA_ID]))
                 cert = self.find_object([(CKA_ID, key_a[CKA_ID]), (CKA_CLASS, CKO_CERTIFICATE)])
                 if cert is not None:
                     cert_a = self.get_object_attributes(cert)
                     cert_pem = cert_der2pem(intarray2bytes(cert_a[CKA_VALUE]))
-                    logging.debug('Certificate found:\n{!r}'.format(cert))
+                    logger.debug('Certificate found:\n{!r}'.format(cert))
                 else:
-                    logging.warning('Found no certificate for key with keyname {!r}'.format(keyname))
+                    logger.warning('Found no certificate for key with keyname {!r}'.format(keyname))
             self.keys[keyname] = (key, cert_pem)
 
         return self.keys[keyname]
@@ -154,12 +158,12 @@ class SessionInfo(object):
                 try:
                     session.login(pin)
                 except PyKCS11.PyKCS11Error as ex:
-                    logging.debug('Login failed: {!r}'.format(ex))
+                    logger.debug('Login failed: {!r}'.format(ex))
                     if 'CKR_USER_ALREADY_LOGGED_IN' not in str(ex):
                         raise
             si = SessionInfo(session=session, slot=slot)
             sessions[slot] = si
-        logging.debug('opened session for {!r}:{:d}'.format(lib, slot))
+        logger.debug('opened session for {!r}:{:d}'.format(lib, slot))
         return sessions[slot]
 
     @staticmethod
@@ -182,15 +186,17 @@ def _find_slot(label, lib):
     :rtype: list
     """
     slots = []
+
     for slot in lib.getSlotList():
         try:
             token_info = lib.getTokenInfo(slot)
             if label == token_info.label.strip():
                 slots.append(int(slot))
-        except PyKCS11.PyKCS11Error:
-            pass
+        except PyKCS11.PyKCS11Error as ex:
+            logger.warning(ex)
+
     if not slots:
-        raise PyelevenException('No slot for token label \"{}\" found'.format(label))
+        raise PKCS11Exception('No slot for token label \"{}\" found'.format(label))
     return slots
 
 
@@ -229,7 +235,7 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
         def _refill():  # if sd is getting a bit light - fill it back up
             if len(sd) < max_slots:
                 for slot in slots_for_label(label, lib):
-                    logging.debug('found slot {!r} for label {!r} during refill'.format(slot, label))
+                    logger.debug('found slot {!r} for label {!r} during refill'.format(slot, label))
                     sd[slot] = True
 
         retry = 10
@@ -244,7 +250,7 @@ def pkcs11(library_name, label, pin=None, max_slots=None):
                     del sd[random_slot]
                 SessionInfo.close_slot(random_slot)
                 time.sleep(0.2)  # TODO - make retry delay configurable
-                logging.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
+                logger.error('Failed opening session (retry: {!r}): {!s}'.format(retry, ex))
                 retry -= 1
                 if not retry:
                     raise

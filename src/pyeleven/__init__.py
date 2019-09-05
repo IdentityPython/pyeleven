@@ -9,7 +9,7 @@ from retrying import retry
 
 from pyeleven.pk11 import pkcs11, load_library, slots_for_label
 from pyeleven.pool import allocation
-from pyeleven.utils import mechanism, intarray2bytes
+from pyeleven.utils import mechanism, intarray2bytes, PKCS11Exception
 
 __author__ = 'leifj'
 
@@ -31,18 +31,13 @@ def library_name():
     return str(app.config['PKCS11MODULE'])
 
 
-#print app.config
-
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 @app.route("/info")
 def _info():
     return jsonify(dict(library=library_name()))
-
-
-class PKCS11Exception(Exception):
-    pass
 
 
 def retryable_errors(ex):
@@ -55,15 +50,15 @@ def _do_sign(label, keyname, mech, data, include_cert=True, require_cert=False):
         include_cert = True
 
     with pkcs11(library_name(), label, pin()) as si:
-        logging.debug('Looking for key with keyname {!r}'.format(keyname))
+        logger.debug('Looking for key with keyname {!r}'.format(keyname))
         key, cert = si.find_key(keyname, find_cert=include_cert)
         if key is None:
-            logging.warning('Found no key using label {!r}, keyname {!r}'.format(label, keyname))
+            logger.warning('Found no key using label {!r}, keyname {!r}'.format(label, keyname))
             raise PKCS11Exception("Key %s not found" % keyname)
         if require_cert and cert is None:
-            logging.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
+            logger.warning('Found no certificate using label {!r}, keyname {!r}'.format(label, keyname))
             raise PKCS11Exception("Certificate for %s is required but missing" % keyname)
-        logging.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
+        logger.debug('Signing {!s} bytes using key {!r}'.format(len(data), keyname))
         result = dict(slot=label, signed=b64encode(intarray2bytes(si.session.sign(key, data, mech))).decode('utf-8'))
         if cert and include_cert:
             result['cert'] = cert
@@ -77,7 +72,7 @@ def _sign(slot_or_label, keyname):
     if not type(msg) is dict:
         raise ValueError("request must be a dict")
 
-    logging.debug('Signing data with slot_or_label {!r} and keyname {!r}\n'.format(slot_or_label, keyname))
+    logger.debug('Signing data with slot_or_label {!r} and keyname {!r}\n'.format(slot_or_label, keyname))
     msg.setdefault('mech', 'RSAPKCS1')
     if 'data' not in msg:
         raise ValueError("missing 'data' in request")
@@ -140,7 +135,7 @@ def _slot_keys(slot_or_label):
                 attrs = si.get_object_friendly_attrs(this)
                 res['objects'].append(attrs)
             except Exception as ex:
-                logging.error('Failed fetching attributes for object, error: {!s}'.format(ex))
+                logger.error('Failed fetching attributes for object, error: {!s}'.format(ex))
     return jsonify(res)
 
 
@@ -157,7 +152,7 @@ def _token():
             lst.append(slot)
             slots.append(slot)
         except Exception as ex:
-            logging.warning(ex)
+            logger.warning(ex)
     r['labels'] = token_labels
     r['slots'] = slots
     return jsonify(r)
