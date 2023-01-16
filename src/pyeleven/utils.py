@@ -10,7 +10,7 @@ class PKCS11Exception(Exception):
 def intarray2bytes(x):
     if six.PY2:
         return ''.join(chr(i) for i in x)
-    return b''.join(chr(i).encode() for i in x)
+    return bytes(x)
 
 
 def mechanism(mech):
