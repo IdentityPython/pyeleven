@@ -1,10 +1,13 @@
 # -*- coding:utf-8 -*-
-try:
-    import Queue as Q
-except ImportError:
-    import queue as Q
 
 from contextlib import contextmanager
+
+import six
+
+if six.PY2:
+    import Queue as Q
+else:
+    import queue as Q
 
 
 class ObjectPool(object):
@@ -25,7 +28,7 @@ class ObjectPool(object):
             n = self.maxSize - self.queue.qsize()
             for i in range(0, n):  # try to allocate enough objects to fill to maxSize
                 obj = self.create(*self.args, **self.kwargs)
-                #print "allocated %s" % obj
+                #print("allocated %s" % obj)
                 self.queue.put(obj)
         return self.queue.get()
 
@@ -41,7 +44,7 @@ def allocation(pool):
     obj = pool.alloc()
     try:
         yield obj
-    except Exception, e:
+    except Exception as e:
         pool.invalidate(obj)
         obj = None
         raise e

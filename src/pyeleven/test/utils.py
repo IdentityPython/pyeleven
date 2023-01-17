@@ -1,9 +1,17 @@
-from Queue import Queue
+import logging
 from threading import Thread
+
+import six
+
+if six.PY2:
+    from Queue import Queue
+else:
+    from queue import Queue
+
+logger = logging.getLogger(__name__)
 
 
 # from http://code.activestate.com/recipes/577187-python-thread-pool/
-
 class Worker(Thread):
     """Thread executing tasks from a given tasks queue"""
     def __init__(self, tasks):
@@ -16,7 +24,8 @@ class Worker(Thread):
         while True:
             func, args, kargs = self.tasks.get()
             try: func(*args, **kargs)
-            except Exception, e: print e
+            except Exception as e:
+                print(e)
             self.tasks.task_done()
 
 
@@ -24,7 +33,8 @@ class ThreadPool:
     """Pool of threads consuming tasks from a queue"""
     def __init__(self, num_threads):
         self.tasks = Queue(num_threads)
-        for _ in range(num_threads): Worker(self.tasks)
+        for _ in range(num_threads):
+            Worker(self.tasks)
 
     def add_task(self, func, *args, **kargs):
         """Add a task to the queue"""
