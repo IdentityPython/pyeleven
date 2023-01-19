@@ -24,7 +24,11 @@ P11_MODULE = _find_alts([
     '/usr/lib/softhsm/libsofthsm2.so',
     '/usr/lib/x86_64-linux-gnu/softhsm/libsofthsm2.so'
 ])
-P11_ENGINE = _find_alts(['/usr/lib/engines/engine_pkcs11.so', '/usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so'])
+P11_ENGINE = _find_alts([
+    '/usr/lib/engines/engine_pkcs11.so',
+    '/usr/lib/x86_64-linux-gnu/engines-1.1/libpkcs11.so',
+    '/usr/lib/x86_64-linux-gnu/engines-3/libpkcs11.so'
+])
 P11_SPY = _find_alts(['/usr/lib/pkcs11/pkcs11-spy.so'])
 PKCS11_TOOL = _find_alts(['/usr/bin/pkcs11-tool'])
 OPENSC_TOOL = _find_alts(['/usr/bin/opensc-tool'])
