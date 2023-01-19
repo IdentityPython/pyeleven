@@ -31,7 +31,7 @@ jobs:
           python setup.py develop
           pip install nose
 
-      - name: Test with pytest
+      - name: Test with nosetest
         run: |
           python setup.py test
 
@@ -60,7 +60,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest
+          make test
 
 #  typecheck:
 #    runs-on: ubuntu-latest
