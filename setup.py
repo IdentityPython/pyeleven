@@ -11,7 +11,8 @@ version = '0.0.1'
 install_requires = [
       'flask',
       'pykcs11',
-      'retrying'
+      'retrying',
+      'six',
 ]
 
 setup(name='pyeleven',
